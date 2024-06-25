@@ -28,32 +28,31 @@ class LoadDatabase {
         List<String> paths = List.of("/forecastsWroclaw.json", "/forecastsWarsaw.json", "/forecastsLodz.json",
                 "/forecastsCracow.json", "/forecastsPoznan.json");
         LocalDate preloadedDate = LocalDate.of(2024, 6, 25);
-        List<List<WeatherForecast>> forecasts =
-                paths.stream().map(path -> {
-                            try {
-                                return WeatherForecast.WeatherForecastMapper(
-                                        mapper.readerFor(Weather.class).readValue(
-                                                mapper.readTree(
-                                                        new ClassPathResource(path, LoadDatabase.class).getInputStream())));
-                            } catch (IOException e) {
-                                throw new RuntimeException(e);
-                            }
-                        })
-                        .map(xs -> xs.stream().peek(x -> {
-                            x.setLast_updated(
-                                    LocalDate.now());
-                            x.setForecast_date(
-                                    LocalDate.now().plusDays(DAYS.between(preloadedDate, x.getForecast_date())));
-                        }).toList()).toList();
+        try {
+            List<List<WeatherForecast>> forecasts =
+                    paths.stream().map(path -> {
+                                try {
+                                    return WeatherForecast.WeatherForecastMapper(
+                                            mapper.readerFor(Weather.class).readValue(
+                                                    mapper.readTree(
+                                                            new ClassPathResource(path, LoadDatabase.class).getInputStream())));
+                                } catch (IOException e) {
+                                    throw new RuntimeException(e);
+                                }
+                            })
+                            .map(xs -> xs.stream().peek(x -> {
+                                x.setLast_updated(
+                                        LocalDate.now());
+                                x.setForecast_date(
+                                        LocalDate.now().plusDays(DAYS.between(preloadedDate, x.getForecast_date())));
+                            }).toList()).toList();
+            return _ ->
 
-        return args ->
-
-        {
-            forecasts.forEach(forecast -> {
-                LOG.info("Preloading forecast for {} {}",
-                        forecast.getFirst().getCity(),
-                        repository.saveAll(forecast));
-            });
-        };
+                    forecasts.forEach(forecast -> LOG.info("Preloading forecast for {} {}",
+                            forecast.getFirst().getCity(),
+                            repository.saveAll(forecast)));
+        } catch (Exception e) {
+            return _ -> LOG.error("Error preloading forecasts", e);
+        }
     }
 }
